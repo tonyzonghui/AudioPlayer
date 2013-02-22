@@ -14,7 +14,7 @@
 
 - (id)initWithSoundFile:(NSString*)filename
 {
-    [super init];
+    if (!(self = [super init])) return nil;
     [self loadSoundFile:filename];
     return self;
 }
@@ -50,7 +50,6 @@
 {
     if(soundDescription.packetDescs) free(soundDescription.packetDescs);
     AudioFileClose(soundDescription.playbackFile);
-    [super dealloc];
 }
 
 - (SoundDescription*)description

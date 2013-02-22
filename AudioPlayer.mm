@@ -29,7 +29,7 @@ static AudioPlayer *sharedAudioPlayer = nil;
 
 - (id)init
 {
-    [super init];
+    if (!(self = [super init])) return nil;
     soundQueue = new SoundQueue;
     soundQueue->currentItem = nil;
     soundQueue->firstItem = nil;
@@ -48,9 +48,7 @@ static AudioPlayer *sharedAudioPlayer = nil;
 {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     [self clearQueue];
-    [sounds release];
     delete soundQueue;
-    [super dealloc];
 }
 
 // Manage audio queue
@@ -103,7 +101,6 @@ static AudioPlayer *sharedAudioPlayer = nil;
     // Clear sound objects created from file
     while([sounds count])
     {
-        [[sounds lastObject] release];
         [sounds removeLastObject];
     }
 }
@@ -187,7 +184,11 @@ static AudioPlayer *sharedAudioPlayer = nil;
     NSLock *lock = [[NSLock alloc] init];
     if([lock tryLock])
     {
-        if(queue == nil) return;
+        if(queue == nil)
+        {
+            [lock unlock];
+            return;
+        }
 
         [[NSNotificationCenter defaultCenter] removeObserver:self];
         [[NSNotificationCenter defaultCenter] postNotificationName:APEVENT_QUEUE_DONE object:self];
@@ -201,7 +202,6 @@ static AudioPlayer *sharedAudioPlayer = nil;
         queue = nil;
         [lock unlock];
     }
-    [lock release];
 }
 
 - (void)pause
