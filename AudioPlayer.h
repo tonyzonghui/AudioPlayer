@@ -56,4 +56,6 @@
 // Get player state
 - (int)currentItemNumber;
 - (bool)isPlaying;
+- (CGFloat)currentTime;
+
 @end

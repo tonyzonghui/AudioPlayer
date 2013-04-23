@@ -14,8 +14,10 @@
 #define APEVENT_MOVING_TO_NEXT_SOUND  @"apeventMovingToNextSound"
 
 // We will need 3 buffers: 1 is playing, 2 is reading and 3 in case of lag
-#define kNumberPlaybackBuffers 3
+#define kNumberPlaybackBuffers 2
 #define kBufferSizeInSeconds 0.01
+
+static NSInteger notificationCountDownCounter = 0;
 
 typedef struct SoundDescription {
     AudioFileID                     playbackFile;
@@ -49,6 +51,7 @@ static SoundQueueItem *currentQueueItem(SoundQueue *queue)
 {
     return queue->currentItem;
 }
+
 static SoundDescription* currentSoundDescription(SoundQueue *queue)
 {
     return currentQueueItem(queue)->sound;
@@ -111,7 +114,10 @@ static void CalculateBytesForTime(AudioFileID inAudioFile, AudioStreamBasicDescr
         *outBufferSize = maxBufferSize;
     else 
     {
-        if(*outBufferSize < minBufferSize) *outBufferSize = minBufferSize;
+        if(*outBufferSize < minBufferSize)
+        {
+            *outBufferSize = minBufferSize;
+        }
     }
     *outNumPackets = *outBufferSize / maxPacketSize;
 }
@@ -135,6 +141,14 @@ static void AQPropertyListenerProc (void *inUserData, AudioQueueRef inAQ, AudioQ
 // Callback that read the data to buffers and enqueue them to be played
 static void AQOutputCallback(void *inUserData, AudioQueueRef inAQ, AudioQueueBufferRef inCompleteAQBuffer)
 {
+    SoundQueue *queue = (SoundQueue *)inUserData;
+    notificationCountDownCounter--;
+    NSLog(@"%d", notificationCountDownCounter);
+    if ( notificationCountDownCounter == 0 )
+    {
+        NSLog(@"send notification");
+        [[NSNotificationCenter defaultCenter] postNotificationName:APEVENT_MOVING_TO_NEXT_SOUND object:queue->object];
+    }
     if ( !((SoundQueue*)inUserData)->currentItem ) return;
     
     SoundDescription *sound = currentSoundDescription((SoundQueue*)inUserData);
@@ -154,6 +168,7 @@ static void AQOutputCallback(void *inUserData, AudioQueueRef inAQ, AudioQueueBuf
     else 
     {
         NSLog(@"next");
+        notificationCountDownCounter = kNumberPlaybackBuffers;
         SoundQueueItem *soundItem = currentQueueItem((SoundQueue*)inUserData);
         if((soundItem->loop == -1 || soundItem->loop > 0) && !soundItem->breakEndlessLoop)
         {
@@ -169,7 +184,7 @@ static void AQOutputCallback(void *inUserData, AudioQueueRef inAQ, AudioQueueBuf
             // Done with this sound
             sound->isDone = true;
             
-            SoundQueue *queue = (SoundQueue*)inUserData;
+//            SoundQueue *queue = (SoundQueue*)inUserData;
             // Move to the next sound (if any)
             queue->currentItem = queue->currentItem->nextItem;
             if(queue->currentItem)
@@ -180,7 +195,6 @@ static void AQOutputCallback(void *inUserData, AudioQueueRef inAQ, AudioQueueBuf
                 // Fill the buffers with the data of the next sound
                 AQOutputCallback(inUserData, inAQ, inCompleteAQBuffer);
                 ++queue->currentItemNumber;
-                [[NSNotificationCenter defaultCenter] postNotificationName:APEVENT_MOVING_TO_NEXT_SOUND object:queue->object];
             }
             else 
             {

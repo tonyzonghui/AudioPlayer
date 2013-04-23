@@ -178,7 +178,9 @@ static AudioPlayer *sharedAudioPlayer = nil;
     // Play
     CheckError(AudioQueueStart(queue, NULL), "AudioQueueStart failed");
     soundQueue->isPlaying = YES;
+    isPaused = NO;
 }
+
 - (void)stop
 {
     NSLock *lock = [[NSLock alloc] init];
@@ -210,6 +212,7 @@ static AudioPlayer *sharedAudioPlayer = nil;
     isPaused = YES;
     CheckError(AudioQueuePause(queue), "AudioQueuePause failed");
 }
+
 - (void)resume
 {
     if(!queue) return;
@@ -237,9 +240,28 @@ static AudioPlayer *sharedAudioPlayer = nil;
 {
     return soundQueue->isPlaying?soundQueue->currentItemNumber:-1;
 }
+
 - (bool)isPlaying
 {
     return soundQueue->isPlaying;
+}
+
+- (CGFloat)currentTime
+{
+    CGFloat currentTime = MAXFLOAT;
+    AudioQueueTimelineRef timeLine;
+    OSStatus status = AudioQueueCreateTimeline(queue, &timeLine);
+    if ( status == noErr )
+    {
+        AudioTimeStamp timeStamp;
+        AudioQueueGetCurrentTime(queue, timeLine, &timeStamp, NULL);
+        if ( soundQueue->currentItem )
+        {
+            currentTime = timeStamp.mSampleTime / soundQueue->currentItem->sound->dataFormat.mSampleRate;
+        }
+    }
+
+    return currentTime;
 }
 
 @end
