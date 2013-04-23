@@ -17,8 +17,6 @@
 #define kNumberPlaybackBuffers 2
 #define kBufferSizeInSeconds 0.01
 
-static NSInteger notificationCountDownCounter = 0;
-
 typedef struct SoundDescription {
     AudioFileID                     playbackFile;
     UInt32                          bufferByteSize;
@@ -142,13 +140,6 @@ static void AQPropertyListenerProc (void *inUserData, AudioQueueRef inAQ, AudioQ
 static void AQOutputCallback(void *inUserData, AudioQueueRef inAQ, AudioQueueBufferRef inCompleteAQBuffer)
 {
     SoundQueue *queue = (SoundQueue *)inUserData;
-    notificationCountDownCounter--;
-    NSLog(@"%d", notificationCountDownCounter);
-    if ( notificationCountDownCounter == 0 )
-    {
-        NSLog(@"send notification");
-        [[NSNotificationCenter defaultCenter] postNotificationName:APEVENT_MOVING_TO_NEXT_SOUND object:queue->object];
-    }
     if ( !((SoundQueue*)inUserData)->currentItem ) return;
     
     SoundDescription *sound = currentSoundDescription((SoundQueue*)inUserData);
@@ -167,8 +158,6 @@ static void AQOutputCallback(void *inUserData, AudioQueueRef inAQ, AudioQueueBuf
     }
     else 
     {
-        NSLog(@"next");
-        notificationCountDownCounter = kNumberPlaybackBuffers;
         SoundQueueItem *soundItem = currentQueueItem((SoundQueue*)inUserData);
         if((soundItem->loop == -1 || soundItem->loop > 0) && !soundItem->breakEndlessLoop)
         {
@@ -198,7 +187,6 @@ static void AQOutputCallback(void *inUserData, AudioQueueRef inAQ, AudioQueueBuf
             }
             else 
             {
-                NSLog(@"stop");
                 // Queue is done.
                 CheckError(AudioQueueStop(inAQ, false), "AudioQueueStop failed");
             }
